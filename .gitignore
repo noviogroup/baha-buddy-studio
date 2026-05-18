@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Sanity build artifacts
+dist/
+.sanity/
+
+# Environment files
+.env
+.env.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Deployment artifacts
+.netlify
+.vercel
