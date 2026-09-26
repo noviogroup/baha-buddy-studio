@@ -1,0 +1,133 @@
+import {defineArrayMember, defineField, defineType} from 'sanity'
+
+/**
+ * Matches the `guidedTour` GROQ projections in Flutter's sanity_service.dart.
+ * Sanity owns the editorial presentation; provider inventory, checkout,
+ * availability reconciliation, and bookings remain outside this document.
+ */
+export default defineType({
+  name: 'guidedTour',
+  title: 'Guided Tour',
+  type: 'document',
+  groups: [
+    {name: 'overview', title: 'Overview', default: true},
+    {name: 'experience', title: 'Experience'},
+    {name: 'commercial', title: 'Pricing & Availability'},
+    {name: 'delivery', title: 'Delivery'},
+  ],
+  fields: [
+    defineField({name: 'title', title: 'Title', type: 'string', group: 'overview', validation: (Rule) => Rule.required().max(120)}),
+    defineField({name: 'slug', title: 'Slug', type: 'slug', group: 'delivery', options: {source: 'title', maxLength: 96}, validation: (Rule) => Rule.required()}),
+    defineField({name: 'tagline', title: 'Tagline', type: 'string', group: 'overview', validation: (Rule) => Rule.required().max(160)}),
+    defineField({name: 'heroImage', title: 'Hero Image', type: 'contentImage', group: 'overview'}),
+    defineField({
+      name: 'category',
+      title: 'Category',
+      type: 'string',
+      group: 'overview',
+      options: {list: [
+        {title: 'Culture & history', value: 'culture_history'},
+        {title: 'Food & drink', value: 'food_drink'},
+        {title: 'Nature & wildlife', value: 'nature_wildlife'},
+        {title: 'Water adventure', value: 'water_adventure'},
+        {title: 'Sightseeing', value: 'sightseeing'},
+        {title: 'Cruise day', value: 'cruise_day'},
+        {title: 'Private custom tour', value: 'private_custom'},
+      ]},
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({name: 'destination', title: 'Destination', type: 'reference', group: 'overview', to: [{type: 'destination'}], validation: (Rule) => Rule.required()}),
+    defineField({name: 'durationHours', title: 'Duration (hours)', type: 'number', group: 'overview', validation: (Rule) => Rule.required().min(0.5).max(24)}),
+    defineField({name: 'description', title: 'Description', type: 'text', rows: 6, group: 'experience', validation: (Rule) => Rule.required().max(3000)}),
+    defineField({name: 'highlights', title: 'Highlights', type: 'array', group: 'experience', of: [defineArrayMember({type: 'string'})], validation: (Rule) => Rule.max(12)}),
+    defineField({name: 'photos', title: 'Gallery', type: 'array', group: 'experience', of: [defineArrayMember({type: 'contentImage'})], validation: (Rule) => Rule.max(16)}),
+    defineField({
+      name: 'itinerary',
+      title: 'Tour Itinerary',
+      type: 'array',
+      group: 'experience',
+      of: [
+        defineArrayMember({
+          name: 'tourItineraryStep',
+          title: 'Tour Step',
+          type: 'object',
+          fields: [
+            defineField({name: 'time', title: 'Time', type: 'string', validation: (Rule) => Rule.required().max(40)}),
+            defineField({name: 'stepTitle', title: 'Step Title', type: 'string', validation: (Rule) => Rule.required().max(120)}),
+            defineField({name: 'stepDescription', title: 'Description', type: 'text', rows: 3, validation: (Rule) => Rule.max(500)}),
+          ],
+          preview: {select: {title: 'stepTitle', subtitle: 'time'}},
+        }),
+      ],
+    }),
+    defineField({name: 'meetingPoint', title: 'Meeting Point', type: 'string', group: 'experience', validation: (Rule) => Rule.max(240)}),
+    defineField({name: 'whatsIncluded', title: "What's Included", type: 'array', group: 'experience', of: [defineArrayMember({type: 'string'})]}),
+    defineField({name: 'whatsNotIncluded', title: "What's Not Included", type: 'array', group: 'experience', of: [defineArrayMember({type: 'string'})]}),
+    defineField({
+      name: 'guideProfile',
+      title: 'Guide Profile',
+      type: 'object',
+      group: 'experience',
+      fields: [
+        defineField({name: 'name', title: 'Name', type: 'string', validation: (Rule) => Rule.max(100)}),
+        defineField({name: 'bio', title: 'Bio', type: 'text', rows: 4, validation: (Rule) => Rule.max(800)}),
+        defineField({name: 'photo', title: 'Photo', type: 'contentImage'}),
+        defineField({name: 'experienceYears', title: 'Years of Experience', type: 'number', validation: (Rule) => Rule.min(0).max(80).integer()}),
+      ],
+    }),
+    defineField({
+      name: 'pricingTiers',
+      title: 'Display Pricing Tiers',
+      type: 'array',
+      group: 'commercial',
+      description: 'Editorial display only. Checkout must verify current provider pricing.',
+      of: [
+        defineArrayMember({
+          name: 'tourPricingTier',
+          title: 'Pricing Tier',
+          type: 'object',
+          fields: [
+            defineField({name: 'label', title: 'Label', type: 'string', validation: (Rule) => Rule.required().max(80)}),
+            defineField({name: 'priceUsd', title: 'Starting Price (USD)', type: 'number', validation: (Rule) => Rule.required().min(0)}),
+            defineField({name: 'includes', title: 'Includes', type: 'array', of: [defineArrayMember({type: 'string'})]}),
+          ],
+          preview: {select: {title: 'label', price: 'priceUsd'}, prepare({title, price}) { return {title, subtitle: typeof price === 'number' ? `$${price.toFixed(2)}` : 'Price pending'} }},
+        }),
+      ],
+    }),
+    defineField({
+      name: 'availability',
+      title: 'Typical Availability',
+      type: 'object',
+      group: 'commercial',
+      description: 'Planning guidance only. Live availability must be verified before booking.',
+      fields: [
+        defineField({name: 'daysAvailable', title: 'Days Available', type: 'array', of: [defineArrayMember({type: 'string'})], options: {list: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}}),
+        defineField({name: 'startTimes', title: 'Typical Start Times', type: 'array', of: [defineArrayMember({type: 'string'})]}),
+        defineField({name: 'advanceBookingDays', title: 'Advance Booking Days', type: 'number', validation: (Rule) => Rule.min(0).max(365).integer()}),
+        defineField({name: 'minGroupSize', title: 'Minimum Group Size', type: 'number', validation: (Rule) => Rule.min(1).max(100).integer()}),
+        defineField({name: 'maxGroupSize', title: 'Maximum Group Size', type: 'number', validation: (Rule) => Rule.min(1).max(500).integer()}),
+      ],
+    }),
+    defineField({name: 'providerRecordId', title: 'Provider or Supabase Record ID', type: 'string', group: 'commercial'}),
+    defineField({name: 'active', title: 'Active', type: 'boolean', group: 'delivery', initialValue: true}),
+    defineField({name: 'featured', title: 'Featured', type: 'boolean', group: 'delivery', initialValue: false}),
+    defineField({name: 'order', title: 'Display Order', type: 'number', group: 'delivery', initialValue: 99}),
+    defineField({
+      name: 'channels',
+      title: 'Delivery Channels',
+      type: 'array',
+      group: 'delivery',
+      description: 'Existing imported tours may remain channel-free and excluded from consumers until the team reviews and assigns delivery.',
+      of: [defineArrayMember({type: 'string'})],
+      options: {list: [{title: 'Web', value: 'web'}, {title: 'Mobile', value: 'mobile'}, {title: 'Buddy planning context', value: 'buddy'}]},
+      initialValue: ['mobile'],
+      validation: (Rule) => Rule.min(1).warning('Assign at least one channel only after this tour is approved for delivery.'),
+    }),
+    defineField({name: 'publishedAt', title: 'Published At', type: 'datetime', group: 'delivery', initialValue: () => new Date().toISOString()}),
+    defineField({name: 'source', title: 'Imported Source', type: 'contentSource', group: 'delivery'}),
+    defineField({name: 'seo', title: 'Search & Sharing', type: 'seo', group: 'delivery'}),
+  ],
+  preview: {select: {title: 'title', destination: 'destination.name', media: 'heroImage', active: 'active'}, prepare({title, destination, media, active}) { return {title: title || 'Untitled tour', subtitle: `${active === false ? 'Inactive' : 'Active'}${destination ? ` · ${destination}` : ''}`, media} }},
+  orderings: [{title: 'Manual order', name: 'manualOrder', by: [{field: 'featured', direction: 'desc'}, {field: 'order', direction: 'asc'}, {field: 'title', direction: 'asc'}]}],
+})

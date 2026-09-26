@@ -1,4 +1,4 @@
-import {defineField, defineType} from 'sanity'
+import {defineArrayMember, defineField, defineType} from 'sanity'
 
 /**
  * travelerStory — Editor-curated testimonial cards surfaced on Explore
@@ -104,6 +104,35 @@ export default defineType({
     }),
 
     defineField({
+      name: 'consentConfirmed',
+      title: 'Publication Consent Confirmed',
+      type: 'boolean',
+      description: 'Confirm that Baha Buddy may publish the traveler name, quote, trip summary, and optional photo.',
+      initialValue: false,
+      validation: (Rule) => Rule.custom((value) => value === true ? true : 'Publication consent must be confirmed.'),
+    }),
+
+    defineField({
+      name: 'consentReference',
+      title: 'Consent Record Reference',
+      type: 'string',
+      description: 'Internal ticket, form response, or storage reference. Do not paste sensitive personal data.',
+      validation: (Rule) => Rule.max(160),
+    }),
+
+    defineField({
+      name: 'channels',
+      title: 'Delivery Channels',
+      type: 'array',
+      of: [defineArrayMember({type: 'string'})],
+      options: {list: [{title: 'Web', value: 'web'}, {title: 'Mobile', value: 'mobile'}]},
+      initialValue: ['web', 'mobile'],
+      validation: (Rule) => Rule.required().min(1),
+    }),
+
+    defineField({name: 'active', title: 'Active', type: 'boolean', initialValue: true}),
+
+    defineField({
       name: 'featured',
       title: 'Featured',
       type: 'boolean',
@@ -152,6 +181,7 @@ export default defineType({
       title: 'Manual order (featured first)',
       name: 'manualOrder',
       by: [
+        {field: 'active', direction: 'desc'},
         {field: 'featured', direction: 'desc'},
         {field: 'order', direction: 'asc'},
         {field: 'publishedAt', direction: 'desc'},

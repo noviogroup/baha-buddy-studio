@@ -1,4 +1,4 @@
-import {defineField, defineType} from 'sanity'
+import {defineArrayMember, defineField, defineType} from 'sanity'
 
 /**
  * socialVideo — Editor-curated TikTok / Instagram / YouTube content
@@ -134,6 +134,41 @@ export default defineType({
     }),
 
     defineField({
+      name: 'rightsStatus',
+      title: 'Usage Rights Status',
+      type: 'string',
+      description: 'Editorial record of why Baha Buddy may feature this creator content.',
+      options: {
+        list: [
+          {title: 'Creator permission confirmed', value: 'permission_confirmed'},
+          {title: 'Licensed asset', value: 'licensed'},
+          {title: 'Partner-provided', value: 'partner_provided'},
+          {title: 'Link and attribution only', value: 'link_only'},
+          {title: 'Needs review', value: 'needs_review'},
+        ],
+      },
+      initialValue: 'needs_review',
+      validation: (Rule) => Rule.required(),
+    }),
+
+    defineField({
+      name: 'channels',
+      title: 'Delivery Channels',
+      type: 'array',
+      of: [defineArrayMember({type: 'string'})],
+      options: {list: [{title: 'Web', value: 'web'}, {title: 'Mobile', value: 'mobile'}]},
+      initialValue: ['web', 'mobile'],
+      validation: (Rule) => Rule.required().min(1),
+    }),
+
+    defineField({
+      name: 'active',
+      title: 'Active',
+      type: 'boolean',
+      initialValue: true,
+    }),
+
+    defineField({
       name: 'featured',
       title: 'Featured',
       type: 'boolean',
@@ -182,6 +217,7 @@ export default defineType({
       title: 'Manual order (featured first)',
       name: 'manualOrder',
       by: [
+        {field: 'active', direction: 'desc'},
         {field: 'featured', direction: 'desc'},
         {field: 'order', direction: 'asc'},
         {field: 'publishedAt', direction: 'desc'},

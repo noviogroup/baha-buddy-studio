@@ -1,0 +1,97 @@
+import {defineArrayMember, defineField, defineType} from 'sanity'
+
+export default defineType({
+  name: 'contentPage',
+  title: 'Page',
+  type: 'document',
+  description: 'Editorial and utility pages such as About, How It Works, Help, Partners, accessibility, privacy, and terms.',
+  groups: [
+    {name: 'content', title: 'Content', default: true},
+    {name: 'publishing', title: 'Publishing'},
+    {name: 'seo', title: 'Search & Sharing'},
+  ],
+  fields: [
+    defineField({name: 'title', title: 'Title', type: 'string', group: 'content', validation: (Rule) => Rule.required().max(120)}),
+    defineField({
+      name: 'slug',
+      title: 'Slug',
+      type: 'slug',
+      group: 'publishing',
+      options: {source: 'title', maxLength: 96},
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({
+      name: 'routePath',
+      title: 'Web Route',
+      type: 'string',
+      group: 'publishing',
+      description: 'Exact public route, for example /about or /tourism-board-partnerships.',
+      validation: (Rule) => Rule.required().custom((value) => !value || value.startsWith('/') ? true : 'Routes must start with /.'),
+    }),
+    defineField({
+      name: 'pageType',
+      title: 'Page Type',
+      type: 'string',
+      group: 'publishing',
+      options: {
+        list: [
+          {title: 'Marketing', value: 'marketing'},
+          {title: 'How it works', value: 'how_it_works'},
+          {title: 'Help & support', value: 'help'},
+          {title: 'Partner', value: 'partner'},
+          {title: 'Legal or policy', value: 'legal'},
+          {title: 'Accessibility', value: 'accessibility'},
+          {title: 'Other utility page', value: 'utility'},
+        ],
+      },
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({name: 'eyebrow', title: 'Eyebrow', type: 'string', group: 'content', validation: (Rule) => Rule.max(60)}),
+    defineField({name: 'subtitle', title: 'Subtitle', type: 'text', rows: 3, group: 'content', validation: (Rule) => Rule.max(300)}),
+    defineField({name: 'heroImage', title: 'Hero Image', type: 'contentImage', group: 'content'}),
+    defineField({
+      name: 'heroActions',
+      title: 'Hero Actions',
+      type: 'array',
+      group: 'content',
+      of: [defineArrayMember({type: 'callToAction'})],
+      validation: (Rule) => Rule.max(3),
+    }),
+    defineField({
+      name: 'sections',
+      title: 'Page Sections',
+      type: 'array',
+      group: 'content',
+      of: [defineArrayMember({type: 'contentSection'})],
+      validation: (Rule) => Rule.required().min(1).warning('Add at least one section before the page is delivered.'),
+    }),
+    defineField({
+      name: 'effectiveDate',
+      title: 'Effective Date',
+      type: 'date',
+      group: 'publishing',
+      description: 'Required for legal and policy pages.',
+    }),
+    defineField({name: 'versionLabel', title: 'Version Label', type: 'string', group: 'publishing', validation: (Rule) => Rule.max(40)}),
+    defineField({
+      name: 'channels',
+      title: 'Delivery Channels',
+      type: 'array',
+      group: 'publishing',
+      of: [defineArrayMember({type: 'string'})],
+      options: {list: [{title: 'Web', value: 'web'}, {title: 'Mobile', value: 'mobile'}]},
+      initialValue: ['web'],
+      validation: (Rule) => Rule.required().min(1),
+    }),
+    defineField({name: 'publishedAt', title: 'Published At', type: 'datetime', group: 'publishing', initialValue: () => new Date().toISOString()}),
+    defineField({name: 'source', title: 'Imported Source', type: 'contentSource', group: 'publishing'}),
+    defineField({name: 'seo', title: 'Search & Sharing', type: 'seo', group: 'seo'}),
+  ],
+  preview: {
+    select: {title: 'title', route: 'routePath', pageType: 'pageType', media: 'heroImage'},
+    prepare({title, route, pageType, media}) {
+      return {title: title || 'Untitled page', subtitle: `${route ?? 'No route'} · ${pageType ?? 'page'}`, media}
+    },
+  },
+  orderings: [{title: 'Route', name: 'routeAsc', by: [{field: 'routePath', direction: 'asc'}]}],
+})
