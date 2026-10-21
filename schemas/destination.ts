@@ -63,7 +63,8 @@ export default defineType({
       validation: (Rule) => Rule.max(12),
     }),
     defineField({name: 'bestTimeToVisit', title: 'Best Time to Visit', type: 'string', group: 'planning', validation: (Rule) => Rule.max(180)}),
-    defineField({name: 'gettingThere', title: 'Getting There', type: 'text', rows: 5, group: 'planning', validation: (Rule) => Rule.max(1200)}),
+    defineField({name: 'gettingThere', title: 'Getting There', type: 'text', rows: 5, group: 'planning', description: 'How travelers reach the island. Routes change, so Buddy treats this as operational: review it at least every 90 days. Never put temporary closures here — use an expiring Island Fact.', validation: (Rule) => Rule.max(1200)}),
+    defineField({name: 'gettingThereReviewedAt', title: 'Getting There Last Checked', type: 'date', group: 'planning', description: 'When the Getting There text was last checked against a source. Buddy stops using it 90 days later. Falls back to Last Reviewed.'}),
     defineField({
       name: 'airports',
       title: 'Airport & Ferry Gateways',
@@ -78,9 +79,49 @@ export default defineType({
             defineField({name: 'code', title: 'IATA Code', type: 'string', validation: (Rule) => Rule.uppercase().length(3)}),
             defineField({name: 'name', title: 'Name', type: 'string', validation: (Rule) => Rule.required().max(120)}),
             defineField({name: 'type', title: 'Type', type: 'string', options: {list: [{title: 'Airport', value: 'airport'}, {title: 'Ferry or water taxi', value: 'ferry'}, {title: 'Port', value: 'port'}]}, validation: (Rule) => Rule.required()}),
-            defineField({name: 'note', title: 'Traveler Note', type: 'text', rows: 2, validation: (Rule) => Rule.max(300)}),
+            defineField({name: 'note', title: 'Traveler Note', type: 'text', rows: 2, description: 'Short, durable advice. No temporary closures or dates.', validation: (Rule) => Rule.max(300)}),
+            defineField({
+              name: 'serviceClassification',
+              title: 'Service Type',
+              type: 'string',
+              description: 'What an operator source shows today. Unknown is Unverified, never Charter only. Only Scheduled service makes the island eligible for Island Match.',
+              options: {list: [
+                {title: 'Scheduled', value: 'scheduled'},
+                {title: 'Scheduled and charter', value: 'scheduled_and_charter'},
+                {title: 'Charter only', value: 'charter_only'},
+                {title: 'Seasonal', value: 'seasonal'},
+                {title: 'Unverified', value: 'unverified'},
+              ]},
+              initialValue: 'unverified',
+            }),
+            defineField({
+              name: 'serviceSources',
+              title: 'Service Sources',
+              type: 'array',
+              description: 'Operator pages supporting the service type. Required for anything but Unverified.',
+              of: [defineArrayMember({type: 'reference', to: [{type: 'researchSource'}]})],
+              validation: (Rule) => Rule.custom((value, context) => {
+                const classification = (context.parent as {serviceClassification?: string} | undefined)?.serviceClassification
+                return classification && classification !== 'unverified' && !(Array.isArray(value) && value.length)
+                  ? 'Add the operator source for this service type.'
+                  : true
+              }),
+            }),
+            defineField({name: 'serviceCheckedAt', title: 'Service Checked', type: 'date', description: 'Buddy uses the service type only once it has a check date.'}),
+            defineField({
+              name: 'serviceNextReviewAt',
+              title: 'Service Review By',
+              type: 'date',
+              description: 'At most 90 days after the check. Later dates are shortened to 90 days.',
+              validation: (Rule) => Rule.custom((value, context) => {
+                const checked = (context.parent as {serviceCheckedAt?: string} | undefined)?.serviceCheckedAt
+                if (!value || !checked) return true
+                const max = new Date(Date.parse(`${checked}T00:00:00Z`) + 90 * 86_400_000).toISOString().slice(0, 10)
+                return value <= max ? true : `Service claims are reviewed within 90 days (by ${max}).`
+              }),
+            }),
           ],
-          preview: {select: {title: 'name', code: 'code', type: 'type'}, prepare({title, code, type}) { return {title, subtitle: [code, type].filter(Boolean).join(' · ')} }},
+          preview: {select: {title: 'name', code: 'code', type: 'type', service: 'serviceClassification'}, prepare({title, code, type, service}) { return {title, subtitle: [code, type, service].filter(Boolean).join(' · ')} }},
         }),
       ],
     }),
@@ -97,7 +138,8 @@ export default defineType({
         defineField({name: 'notIdealFor', title: 'Not Ideal For', type: 'text', rows: 2, validation: (Rule) => Rule.max(300)}),
       ],
     }),
-    defineField({name: 'practicalNotes', title: 'Practical Notes', type: 'richText', group: 'planning'}),
+    defineField({name: 'practicalNotes', title: 'Practical Notes', type: 'richText', group: 'planning', description: 'Shown on web and mobile. Buddy does not use it: safety goes in Safety Notes, and entry or passport rules come from the live entry-requirements data.'}),
+    defineField({name: 'safetyNotes', title: 'Safety Notes', type: 'richText', group: 'planning', description: 'Island safety guidance for Buddy: water, getting around at night, emergency help. Never passport or entry rules — Buddy drops those. Reviewed every 90 days.'}),
     defineField({name: 'faqs', title: 'Destination FAQs', type: 'array', group: 'planning', of: [defineArrayMember({type: 'faqItem'})], validation: (Rule) => Rule.max(12)}),
     defineField({name: 'gallery', title: 'Gallery', type: 'array', group: 'media', of: [defineArrayMember({type: 'contentImage'})], validation: (Rule) => Rule.max(20)}),
     defineField({name: 'featured', title: 'Featured', type: 'boolean', group: 'delivery', initialValue: false}),

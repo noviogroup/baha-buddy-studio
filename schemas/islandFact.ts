@@ -13,7 +13,28 @@ export default defineType({
   ],
   fields: [
     defineField({name: 'title', title: 'Internal Title', type: 'string', group: 'fact', validation: (Rule) => Rule.required().max(140)}),
-    defineField({name: 'destination', title: 'Destination', type: 'reference', group: 'fact', to: [{type: 'destination'}], validation: (Rule) => Rule.required()}),
+    defineField({
+      name: 'scope',
+      title: 'Applies To',
+      type: 'string',
+      group: 'fact',
+      description: 'Bahamas-wide facts (emergency numbers, hurricane season) are stored once and given to Buddy for every island.',
+      options: {list: [{title: 'One island', value: 'island'}, {title: 'All of The Bahamas', value: 'national'}], layout: 'radio'},
+      initialValue: 'island',
+    }),
+    defineField({
+      name: 'destination',
+      title: 'Destination',
+      type: 'reference',
+      group: 'fact',
+      to: [{type: 'destination'}],
+      hidden: ({parent}) => parent?.scope === 'national',
+      validation: (Rule) => Rule.custom((value, context) => {
+        const scope = (context.parent as {scope?: string} | undefined)?.scope
+        if (scope === 'national') return value ? 'A Bahamas-wide fact has no destination.' : true
+        return value ? true : 'Choose the island this fact is about.'
+      }),
+    }),
     defineField({
       name: 'topic',
       title: 'Topic',
@@ -56,7 +77,40 @@ export default defineType({
       validation: (Rule) => Rule.required().min(1).error('Every fact needs at least one reviewed source.'),
     }),
     defineField({name: 'checkedAt', title: 'Fact Checked', type: 'date', group: 'evidence', validation: (Rule) => Rule.required()}),
-    defineField({name: 'nextReviewAt', title: 'Review Again By', type: 'date', group: 'evidence', validation: (Rule) => Rule.required()}),
+    defineField({
+      name: 'nextReviewAt',
+      title: 'Review Again By',
+      type: 'date',
+      group: 'evidence',
+      description: 'Counted from Fact Checked: stable within 24 months, seasonal 6 months, operational 90 days. Buddy shortens later dates to that window.',
+      validation: (Rule) => Rule.required().custom((value, context) => {
+        const parent = context.parent as {checkedAt?: string; volatility?: string} | undefined
+        if (!value || !parent?.checkedAt || !parent.volatility || parent.volatility === 'live') return true
+        const checked = new Date(`${parent.checkedAt}T00:00:00Z`)
+        const max = parent.volatility === 'operational'
+          ? new Date(checked.getTime() + 90 * 86_400_000)
+          : new Date(Date.UTC(checked.getUTCFullYear(), checked.getUTCMonth() + (parent.volatility === 'seasonal' ? 6 : 24), checked.getUTCDate()))
+        const limit = max.toISOString().slice(0, 10)
+        return value <= limit ? true : `A ${parent.volatility} fact is reviewed by ${limit}.`
+      }),
+    }),
+    defineField({
+      name: 'expiresAt',
+      title: 'Notice Ends',
+      type: 'datetime',
+      group: 'evidence',
+      description: 'For dated notices only (a temporary airport closure). Buddy stops using the fact at this moment. The end of a notice never means the situation is resolved.',
+    }),
+    defineField({
+      name: 'affectsGatewayCodes',
+      title: 'Affects Gateways',
+      type: 'array',
+      group: 'evidence',
+      description: 'IATA codes of gateways this notice affects (e.g. TYM). While the notice runs, they are left out of Island Match.',
+      of: [defineArrayMember({type: 'string', validation: (Rule) => Rule.uppercase().length(3)})],
+      options: {layout: 'tags'},
+      hidden: ({parent}) => !parent?.expiresAt,
+    }),
     defineField({
       name: 'volatility',
       title: 'Volatility',
@@ -113,9 +167,9 @@ export default defineType({
     }),
   ],
   preview: {
-    select: {title: 'title', destination: 'destination.name', topic: 'topic', status: 'verificationStatus', confidence: 'confidence'},
-    prepare({title, destination, topic, status, confidence}) {
-      return {title: title || 'Untitled fact', subtitle: [destination, topic, status, confidence].filter(Boolean).join(' · ')}
+    select: {title: 'title', destination: 'destination.name', scope: 'scope', topic: 'topic', status: 'verificationStatus', confidence: 'confidence'},
+    prepare({title, destination, scope, topic, status, confidence}) {
+      return {title: title || 'Untitled fact', subtitle: [scope === 'national' ? 'All of The Bahamas' : destination, topic, status, confidence].filter(Boolean).join(' · ')}
     },
   },
   orderings: [
